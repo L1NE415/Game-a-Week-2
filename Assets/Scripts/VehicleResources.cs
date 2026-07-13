@@ -17,12 +17,26 @@ public class VehicleResources : MonoBehaviour
     [SerializeField] private float hungerPerFood = 25f;         // restored per food from storage
     [SerializeField] private Key eatKey = Key.F;
 
+    [Header("Thirst")]
+    [SerializeField] private float maxThirst = 100f;
+    [SerializeField] private float thirstDecayPerSecond = 1.5f; // thirst drops faster than hunger
+
+    [Header("Sanity")]
+    [SerializeField] private float maxSanity = 100f;
+    [SerializeField] private float sanityDecayPerSecond = 0.4f; // drops slowly; sleep to restore
+
     [Header("Energy")]
     [SerializeField] private float maxEnergy = 100f;
     [SerializeField] private float startEnergy = 60f;
+    [Tooltip("Constant vehicle drain (autopilot/life support). Runs even when devices are off - this is what makes running out of power possible")]
+    [SerializeField] private float baseDrainPerSecond = 0.5f;
 
     public float Hunger { get; private set; }
     public float MaxHunger => maxHunger;
+    public float Thirst { get; private set; }
+    public float MaxThirst => maxThirst;
+    public float Sanity { get; private set; }
+    public float MaxSanity => maxSanity;
     public float Energy { get; private set; }
     public float MaxEnergy => maxEnergy;
     public int FoodStored { get; private set; }
@@ -49,6 +63,8 @@ public class VehicleResources : MonoBehaviour
         Instance = this;
 
         Hunger = maxHunger;
+        Thirst = maxThirst;
+        Sanity = maxSanity;
         Energy = startEnergy;
     }
 
@@ -59,8 +75,13 @@ public class VehicleResources : MonoBehaviour
 
     private void Update()
     {
-        // Hunger drains constantly (skeleton phase: clamps at 0, no game over)
+        // Needs drain constantly; GameSession watches for zeros and triggers game over
         Hunger = Mathf.Max(0f, Hunger - hungerDecayPerSecond * Time.deltaTime);
+        Thirst = Mathf.Max(0f, Thirst - thirstDecayPerSecond * Time.deltaTime);
+        Sanity = Mathf.Max(0f, Sanity - sanityDecayPerSecond * Time.deltaTime);
+
+        // Constant vehicle drain (bypasses TryConsume so the battery CAN reach zero)
+        consumptionThisFrame += baseDrainPerSecond * Time.deltaTime;
 
         // Press F to eat: held food first, then storage
         Keyboard keyboard = Keyboard.current;
@@ -94,6 +115,12 @@ public class VehicleResources : MonoBehaviour
         productionThisFrame += Mathf.Max(0f, amount);
     }
 
+    /// <summary>Unavoidable drain (cargo weight, etc.). Bypasses the energy check so the battery can hit zero.</summary>
+    public void ReportDrain(float amount)
+    {
+        consumptionThisFrame += Mathf.Max(0f, amount);
+    }
+
     /// <summary>Called by consuming devices each frame. Returns true if there was enough energy.</summary>
     public bool TryConsume(float amount)
     {
@@ -103,6 +130,18 @@ public class VehicleResources : MonoBehaviour
         }
         consumptionThisFrame += Mathf.Max(0f, amount);
         return true;
+    }
+
+    /// <summary>Called by the water purifier when the player drinks.</summary>
+    public void Drink(float amount)
+    {
+        Thirst = Mathf.Min(maxThirst, Thirst + amount);
+    }
+
+    /// <summary>Called by the bed when the player sleeps.</summary>
+    public void RestoreSanity(float amount)
+    {
+        Sanity = Mathf.Min(maxSanity, Sanity + amount);
     }
 
     public void AddFood(int count)

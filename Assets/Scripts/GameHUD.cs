@@ -16,6 +16,7 @@ public class GameHUD : MonoBehaviour
 
     private Text topLeftText;
     private Text topRightText;
+    private Text topCenterText;
     private Text promptText;
     private readonly StringBuilder sb = new StringBuilder();
 
@@ -32,7 +33,16 @@ public class GameHUD : MonoBehaviour
     {
         UpdateTopLeft();
         UpdateTopRight();
+        UpdateTimer();
         UpdatePrompt();
+    }
+
+    private void UpdateTimer()
+    {
+        float elapsed = GameSession.Instance != null
+            ? GameSession.Instance.Elapsed
+            : Time.timeSinceLevelLoad;
+        topCenterText.text = GameSession.FormatTime(elapsed);
     }
 
     private void UpdateTopLeft()
@@ -46,9 +56,19 @@ public class GameHUD : MonoBehaviour
 
         sb.Clear();
         sb.AppendLine($"HUNGER  {res.Hunger:F0}/{res.MaxHunger:F0}   [F] Eat");
+        sb.AppendLine($"THIRST  {res.Thirst:F0}/{res.MaxThirst:F0}");
+        sb.AppendLine($"SANITY  {res.Sanity:F0}/{res.MaxSanity:F0}");
         sb.AppendLine($"FOOD    x{res.FoodStored}");
         sb.AppendLine($"ENERGY  {res.Energy:F0}/{res.MaxEnergy:F0}");
-        sb.AppendLine($"POWER   +{res.EnergyProductionPerSecond:F1}/s  -{res.EnergyConsumptionPerSecond:F1}/s  (net {res.NetEnergyPerSecond:+0.0;-0.0}/s)");
+
+        WeightZone zone = WeightZone.Instance;
+        if (zone != null)
+        {
+            string overload = zone.CurrentDrain > 0f
+                ? $"  OVERLOADED +{zone.CurrentDrain:F1}/s drain - throw stuff off! [Q]"
+                : $"  (free up to {zone.FreeItems})";
+            sb.AppendLine($"WEIGHT  {zone.ItemCount} items{overload}");
+        }
         topLeftText.text = sb.ToString();
     }
 
@@ -101,6 +121,11 @@ public class GameHUD : MonoBehaviour
         topLeftText = CreateText(canvasGo.transform, "TopLeft",
             anchor: new Vector2(0f, 1f), pivot: new Vector2(0f, 1f),
             position: new Vector2(20f, -20f), alignment: TextAnchor.UpperLeft);
+
+        topCenterText = CreateText(canvasGo.transform, "TopCenter",
+            anchor: new Vector2(0.5f, 1f), pivot: new Vector2(0.5f, 1f),
+            position: new Vector2(0f, -20f), alignment: TextAnchor.UpperCenter);
+        topCenterText.fontSize = fontSize + 10;
 
         topRightText = CreateText(canvasGo.transform, "TopRight",
             anchor: new Vector2(1f, 1f), pivot: new Vector2(1f, 1f),

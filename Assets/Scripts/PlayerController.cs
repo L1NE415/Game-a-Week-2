@@ -6,6 +6,8 @@ using UnityEngine.InputSystem;
 public class PlayerController : MonoBehaviour
 {
     [SerializeField] private float moveSpeed = 5f;
+    [Tooltip("How fast the character turns to face the move direction (degrees/second)")]
+    [SerializeField] private float turnSpeed = 720f;
     [SerializeField] private float jumpForce = 6f;
     [SerializeField] private float groundCheckDistance = 0.08f;
     [SerializeField] private LayerMask groundLayers = ~0;
@@ -32,9 +34,9 @@ public class PlayerController : MonoBehaviour
     private void FixedUpdate()
     {
         Vector2 moveInput = ReadMoveInput();
-        // Move relative to character facing: W = forward direction (works with MouseLook rotation)
-        Vector3 moveDirection = transform.right * moveInput.x + transform.forward * moveInput.y;
-        moveDirection.y = 0f;
+        // Fixed top-down camera: move along world axes (W = up on screen),
+        // and turn the character to face wherever it is moving (Overcooked style)
+        Vector3 moveDirection = new Vector3(moveInput.x, 0f, moveInput.y);
 
         if (moveDirection.sqrMagnitude > 1f)
         {
@@ -45,6 +47,13 @@ public class PlayerController : MonoBehaviour
         velocity.x = moveDirection.x * moveSpeed;
         velocity.z = moveDirection.z * moveSpeed;
         rb.linearVelocity = velocity;
+
+        // Rotate toward the move direction (interaction/pickup raycasts use transform.forward)
+        if (moveDirection.sqrMagnitude > 0.0001f)
+        {
+            Quaternion targetRotation = Quaternion.LookRotation(moveDirection);
+            rb.MoveRotation(Quaternion.RotateTowards(rb.rotation, targetRotation, turnSpeed * Time.fixedDeltaTime));
+        }
 
         if (jumpQueued && IsGrounded())
         {
