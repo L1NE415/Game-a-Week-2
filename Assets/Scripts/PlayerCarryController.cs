@@ -22,11 +22,27 @@ public class PlayerCarryController : MonoBehaviour
     private PickableItem heldItem;
     private Collider[] playerColliders;
     private Transform runtimeHoldPoint;
+    private PlayerInteractor interactor;
+
+    /// <summary>Item currently held (null = empty hands).</summary>
+    public PickableItem HeldItem => heldItem;
+
+    /// <summary>Destroys the held item (used when eating food).</summary>
+    public void DestroyHeldItem()
+    {
+        if (heldItem == null)
+        {
+            return;
+        }
+        Destroy(heldItem.gameObject);
+        heldItem = null;
+    }
 
     private void Awake()
     {
         playerColliders = GetComponentsInChildren<Collider>();
         runtimeHoldPoint = holdPoint != null ? holdPoint : CreateFallbackHoldPoint();
+        interactor = GetComponent<PlayerInteractor>();
     }
 
     private void Update()
@@ -38,7 +54,10 @@ public class PlayerCarryController : MonoBehaviour
             return;
         }
 
-        if (keyboard[interactKey].wasPressedThisFrame)
+        // Yield E only when the interactor has a target (no full-frame return, so Q throw is unaffected)
+        bool interactorTookKey = interactor != null && interactor.HasTarget;
+
+        if (keyboard[interactKey].wasPressedThisFrame && !interactorTookKey)
         {
             if (heldItem == null)
             {

@@ -32,7 +32,9 @@ public class PlayerController : MonoBehaviour
     private void FixedUpdate()
     {
         Vector2 moveInput = ReadMoveInput();
-        Vector3 moveDirection = new Vector3(moveInput.x, 0f, moveInput.y);
+        // Move relative to character facing: W = forward direction (works with MouseLook rotation)
+        Vector3 moveDirection = transform.right * moveInput.x + transform.forward * moveInput.y;
+        moveDirection.y = 0f;
 
         if (moveDirection.sqrMagnitude > 1f)
         {
