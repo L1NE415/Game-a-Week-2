@@ -20,8 +20,8 @@ public class WeightZone : MonoBehaviour
     [SerializeField] private float drainPerItem = 0.3f;
 
     [Header("Despawn")]
-    [Tooltip("Items this far (horizontal) from the zone center are destroyed. 0 = never despawn")]
-    [SerializeField] private float despawnDistance = 12f;
+    [Tooltip("Off-board items are destroyed once they leave the camera view by this viewport margin (0.1 = 10% outside the screen edge). Set negative to disable despawning")]
+    [SerializeField] private float despawnViewportMargin = 0.15f;
 
     /// <summary>Items currently on board (for HUD).</summary>
     public int ItemCount { get; private set; }
@@ -76,14 +76,24 @@ public class WeightZone : MonoBehaviour
         ItemCount = onBoard.Count;
     }
 
+    /// <summary>Whether this item is currently inside the cargo zone (used by WorldScroller).</summary>
+    public bool IsOnBoard(PickableItem item)
+    {
+        return onBoard.Contains(item);
+    }
+
     private void DespawnFarItems()
     {
-        if (despawnDistance <= 0f)
+        if (despawnViewportMargin < 0f)
         {
             return;
         }
 
-        Vector3 center = box.transform.TransformPoint(box.center);
+        Camera cam = Camera.main;
+        if (cam == null)
+        {
+            return;
+        }
 
         foreach (PickableItem item in FindObjectsByType<PickableItem>(FindObjectsSortMode.None))
         {
@@ -92,10 +102,14 @@ public class WeightZone : MonoBehaviour
                 continue;
             }
 
-            Vector3 offset = item.transform.position - center;
-            offset.y = 0f; // horizontal distance only
+            // Keep the item as long as the camera can (roughly) see it;
+            // destroy once it drifts past the screen edge + margin
+            Vector3 vp = cam.WorldToViewportPoint(item.transform.position);
+            bool visible = vp.z > 0f
+                && vp.x > -despawnViewportMargin && vp.x < 1f + despawnViewportMargin
+                && vp.y > -despawnViewportMargin && vp.y < 1f + despawnViewportMargin;
 
-            if (offset.sqrMagnitude > despawnDistance * despawnDistance)
+            if (!visible)
             {
                 Destroy(item.gameObject); // the car drove away without it
             }
